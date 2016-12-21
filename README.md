@@ -1,1 +1,1 @@
-# vscode-quick-projects
+# projects
