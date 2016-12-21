@@ -1,15 +1,19 @@
 'use strict';
-import * as vscode from 'vscode';
+import {
+    ExtensionContext,
+    window,
+    workspace,
+    WorkspaceConfiguration,
+    commands,
+    StatusBarAlignment,
+    StatusBarItem,
+    QuickPickOptions,
+    Uri,
+    MessageItem
+} from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-
-const {
-    window,
-    workspace,
-    commands,
-    StatusBarAlignment
-} = vscode;
 
 interface ProjectElement {
     name: string,
@@ -20,10 +24,10 @@ export default class Projects {
     private homePathVariable: string = '$home'
     public homeDir: string = os.homedir()
 
-    private context: vscode.ExtensionContext
-    private config: vscode.WorkspaceConfiguration = workspace.getConfiguration('projects')
+    private context: ExtensionContext
+    private config: WorkspaceConfiguration = workspace.getConfiguration('projects')
 
-    public constructor(context: vscode.ExtensionContext) {
+    public constructor(context: ExtensionContext) {
         this.context = context;
         this.registerCommands();
         this.showStatusBar();
@@ -32,7 +36,7 @@ export default class Projects {
         let showStatusBar = this.config.get('showProjectNameInStatusBar');
         let currentProjectPath = workspace.rootPath;
         if (showStatusBar && currentProjectPath) {
-            let statusItem: vscode.StatusBarItem = window.createStatusBarItem(StatusBarAlignment.Left);
+            let statusItem: StatusBarItem = window.createStatusBarItem(StatusBarAlignment.Left);
             statusItem.text = '$(file-directory) ';
             statusItem.tooltip = currentProjectPath;
             statusItem.command = 'projects.list';
@@ -47,11 +51,13 @@ export default class Projects {
         }
     }
     public registerCommands(): void {
-        this.context.subscriptions.push(commands.registerCommand('projects.list', () => this.listProjects));
+        this.context.subscriptions.push(commands.registerCommand('projects.list', () => this.listProjects()));
     }
     public listProjects() {
-        let projects: ProjectElement[] = this.getProjects();
-        let options = <vscode.QuickPickOptions>{
+        let projects: Promise<ProjectElement> = new Promise((resolve, reject) => {
+            resolve(this.getProjects());
+        });
+        let options = <QuickPickOptions>{
             placeHolder: 'Loading Projects (pick one to open)',
             matchOnDescription: false,
             matchOnDetail: false
@@ -67,8 +73,8 @@ export default class Projects {
             return;
         }
         let openInNewWindow: boolean = this.config.get('openInNewWindow', true);
-        let uri: vscode.Uri = vscode.Uri.file(selected.path);
-        commands.executeCommand('vscode.openFolder', uri, openInNewWindow)
+        let url: Uri = Uri.file(selected.path);
+        commands.executeCommand('vscode.openFolder', url, openInNewWindow)
             .then(
                 value => ({}),
                 value => this.showInfo('Could not open the project!')
@@ -110,7 +116,7 @@ export default class Projects {
         }
         return path;
     }
-    public showError(msg: string, option?: vscode.MessageItem): Thenable<any> {
+    public showError(msg: string, option?: MessageItem): Thenable<any> {
         return window.showErrorMessage(msg, option);
     }
     public showInfo(msg: string): void {

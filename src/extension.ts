@@ -1,7 +1,7 @@
 'use strict';
-import * as vscode from 'vscode';
+import {ExtensionContext} from 'vscode';
 import Projects from './projects';
 
-export function activate(context: vscode.ExtensionContext): void {
+export function activate(context: ExtensionContext): void {
     new Projects(context);
 }
