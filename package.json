@@ -2,7 +2,7 @@
     "name": "projects",
     "displayName": "projects",
     "description": "easily switch between projects",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "publisher": "bukas",
     "engines": {
         "vscode": "^1.5.0"
@@ -24,7 +24,7 @@
 	"bugs": {
 		"url": "https://github.com/huanz/vscode-projects/issues"
 	},
-    "icon": "images/projects.svg",
+    "icon": "images/projects.png",
     "activationEvents": [
         "*"
     ],
