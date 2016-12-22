@@ -16,7 +16,18 @@
         "switch",
         "manage"
     ],
-    "icon": "images/icon.png",
+    "homepage": "https://github.com/huanz/vscode-projects/blob/master/README.md",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/huanz/vscode-projects.git"
+	},
+	"bugs": {
+		"url": "https://github.com/huanz/vscode-projects/issues"
+	},
+    "icon": "images/projects.svg",
+    "activationEvents": [
+        "*"
+    ],
     "main": "./out/src/extension",
     "contributes": {
         "commands": [{
@@ -25,11 +36,19 @@
         }, {
             "command": "projects.reload",
             "title": "Projects: Reload Projects Location"
+        }, {
+            "command": "projects.create",
+            "title": "Projects: Create empty Project"
         }],
         "configuration": {
             "type": "object",
             "title": "Projects Configuration",
             "properties": {
+                "projects.projectsLocation": {
+                    "type": "string",
+                    "default": "projects",
+                    "description": "Indicates an alternative projects location"
+                },
                 "projects.showProjectNameInStatusBar": {
                     "type": "boolean",
                     "default": true,
@@ -38,7 +57,7 @@
                 "projects.sortList": {
                     "type": "string",
                     "default": "name",
-                    "description": "List the projects sorted by...(Saved, Name, Path or Recent)",
+                    "description": "List the projects sorted by...(default、Name or Recent)",
                     "enum": [
                         "name",
                         "recent"
@@ -48,11 +67,6 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Should the project be opened using a New Window?"
-                },
-                "projects.projectsLocation": {
-                    "type": "string",
-                    "default": "",
-                    "description": "Indicates an alternative projects location"
                 },
                 "projects.ignoredFolders": {
                     "type": "array",

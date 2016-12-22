@@ -8,95 +8,146 @@ import {
     StatusBarAlignment,
     StatusBarItem,
     QuickPickOptions,
+    QuickPickItem,
     Uri,
-    MessageItem
+    MessageItem,
+    InputBoxOptions
 } from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import Store from './store';
 
 interface ProjectElement {
-    name: string,
-    path: string
+    label: string,
+    description: string
 }
 
 export default class Projects {
-    private homePathVariable: string = '$home'
-    public homeDir: string = os.homedir()
+    homePathVariable: string = '$home'
+    homeDir: string = os.homedir()
 
-    private context: ExtensionContext
-    private config: WorkspaceConfiguration = workspace.getConfiguration('projects')
+    context: ExtensionContext
+    config: WorkspaceConfiguration
 
-    public constructor(context: ExtensionContext) {
+    private _statusBarItem: StatusBarItem
+    private _store: Store
+
+    constructor(context: ExtensionContext) {
         this.context = context;
+        this.config = workspace.getConfiguration('projects');
+
+        this._store = new Store(context);
+
         this.registerCommands();
         this.showStatusBar();
+
+        context.subscriptions.push(this);
     }
-    public showStatusBar(): void {
-        let showStatusBar = this.config.get('showProjectNameInStatusBar');
+    showStatusBar(): void {
+        let showStatusBar = this.config.get('showProjectNameInStatusBar', true);
         let currentProjectPath = workspace.rootPath;
         if (showStatusBar && currentProjectPath) {
-            let statusItem: StatusBarItem = window.createStatusBarItem(StatusBarAlignment.Left);
-            statusItem.text = '$(file-directory) ';
-            statusItem.tooltip = currentProjectPath;
-            statusItem.command = 'projects.list';
+            if (!this._statusBarItem) {
+                this._statusBarItem = window.createStatusBarItem(StatusBarAlignment.Left);
+            }
+            this._statusBarItem.text = '$(file-directory) ';
+            this._statusBarItem.tooltip = currentProjectPath;
+            this._statusBarItem.command = 'projects.list';
 
             let projects: ProjectElement[] = this.getProjects();
             currentProjectPath = currentProjectPath.toString().toLowerCase();
-            let currentProject: ProjectElement = projects.find((project) => project.path.toString().toLowerCase() === currentProjectPath);
+            let currentProject: ProjectElement = projects.find((project) => project.description.toString().toLowerCase() === currentProjectPath);
             if (currentProject) {
-                statusItem.text += currentProject.name;
-                statusItem.show();
+                this._statusBarItem.text += currentProject.label;
+                this._statusBarItem.show();
             }
         }
     }
-    public registerCommands(): void {
+    registerCommands(): void {
         this.context.subscriptions.push(commands.registerCommand('projects.list', () => this.listProjects()));
+        this.context.subscriptions.push(commands.registerCommand('projects.reload', () => this.reloadProjects()));
+        this.context.subscriptions.push(commands.registerCommand('projects.create', () => this.createProject()));
     }
-    public listProjects() {
-        let projects: Promise<ProjectElement> = new Promise((resolve, reject) => {
+    listProjects() {
+        let projects: Promise<QuickPickItem[]> = new Promise((resolve, reject) => {
             resolve(this.getProjects());
         });
         let options = <QuickPickOptions>{
-            placeHolder: 'Loading Projects (pick one to open)',
+            placeHolder: 'load projects (pick one to open)',
             matchOnDescription: false,
             matchOnDetail: false
         };
 
         window.showQuickPick(projects, options).then(
-            selected => this.pickProject(selected),
+            selected => this._pickProject(selected),
             () => this.showInfo('Error loading projects: ${reason}')
         );
     }
-    private pickProject(selected?: ProjectElement) {
-        if (!selected) {
-            return;
-        }
-        let openInNewWindow: boolean = this.config.get('openInNewWindow', true);
-        let url: Uri = Uri.file(selected.path);
-        commands.executeCommand('vscode.openFolder', url, openInNewWindow)
-            .then(
-                value => ({}),
-                value => this.showInfo('Could not open the project!')
-            );
+    reloadProjects() {
+        this._store.clear('projects').then(() => this.listProjects());
     }
-    public getProjects(): ProjectElement[] {
-        let projectDir = this.getProjectPath();
-        if (projectDir) {
-            let ignoredFolders = this.config.get('ignoredFolders', []);
-            return fs.readdirSync(projectDir).filter(function (dir) {
-                return !dir.startsWith('.') && ignoredFolders.indexOf(dir) === -1 && fs.statSync(path.join(projectDir, dir)).isDirectory();
-            }).map(function (dir) {
-                return {
-                    name: dir,
-                    path: path.join(projectDir, dir)
-                };
-            });
+    createProject() {
+        let options = <InputBoxOptions>{
+            prompt: 'enter project name here',
+            placeHolder: 'enter project name here',
+            validateInput: (input) => {
+                if (!input.trim()) {
+                    return 'project name is required';
+                }
+                let projects = this.getProjects();
+                if (projects && projects.some(project => project.label === input)) {
+                    return 'this project is already exist';
+                }
+            }
+        };
+        window.showInputBox(options).then(input => {
+            input = input.trim();
+            if (input) {
+                let projectDir = this.getProjectPath();
+                if (projectDir) {
+                    let newDir = path.join(projectDir, input);
+                    fs.mkdirSync(newDir);
+                    let projects = this._store.get('projects');
+                    if (projects) {
+                        projects.push({
+                            label: input,
+                            description: newDir
+                        });
+                        this._store.set('projects', projects);
+                    }
+                    this.showInfo(`project ${input} create success`);
+                }
+            }
+        },
+            () => this.showError('create project failed'));
+    }
+    getProjects(): ProjectElement[] {
+        let projects = this._store.get('projects');
+        if (projects) {
+            return projects;
         } else {
-            this.showError('Error loading project dir');
+            let projectDir = this.getProjectPath();
+            if (projectDir) {
+                let ignoredFolders = this.config.get('ignoredFolders', []);
+                let projects = fs.readdirSync(projectDir).filter(function (dir) {
+                    return !dir.startsWith('.') && ignoredFolders.indexOf(dir) === -1 && fs.statSync(path.join(projectDir, dir)).isDirectory();
+                }).map(function (dir) {
+                    return {
+                        label: dir,
+                        description: path.join(projectDir, dir)
+                    };
+                });
+                if (projects.length) {
+                    this._store.set('projects', projects);
+                    return projects;
+                }
+            } else {
+                this.showError('Error loading project dir');
+            }
         }
     }
-    public getProjectPath(): any {
+    getProjectPath(): any {
         let projectsLocation: string = this.config.get<string>('projectsLocation');
         projectsLocation = projectsLocation ? this.replaceHome(projectsLocation) : path.join(this.homeDir, 'projects');
         try {
@@ -110,16 +161,30 @@ export default class Projects {
             this.showError('projects.projectsLocation not exist');
         }
     }
-    public replaceHome(path: string): string {
+    replaceHome(path: string): string {
         if (path.startsWith(this.homePathVariable)) {
             return path.replace(this.homePathVariable, this.homeDir);
         }
         return path;
     }
-    public showError(msg: string, option?: MessageItem): Thenable<any> {
+    showError(msg: string, option?: MessageItem): Thenable<any> {
         return window.showErrorMessage(msg, option);
     }
-    public showInfo(msg: string): void {
+    showInfo(msg: string): void {
         window.showInformationMessage(msg);
+    }
+    dispose() {
+        this._statusBarItem.dispose();
+    }
+    private _pickProject(selected?: ProjectElement) {
+        if (!selected) {
+            return;
+        }
+        let openInNewWindow: boolean = this.config.get('openInNewWindow', true);
+        let url: Uri = Uri.file(selected.description);
+        commands.executeCommand('vscode.openFolder', url, openInNewWindow).then(
+            () => {},
+            () => this.showInfo('Could not open the project!')
+        );
     }
 }
