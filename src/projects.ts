@@ -68,6 +68,8 @@ export default class Projects {
         this.context.subscriptions.push(commands.registerCommand('projects.list', () => this.listProjects()));
         this.context.subscriptions.push(commands.registerCommand('projects.reload', () => this.reloadProjects()));
         this.context.subscriptions.push(commands.registerCommand('projects.create', () => this.createProject()));
+
+        workspace.onDidChangeConfiguration(() => this.reloadProjects());
     }
     listProjects() {
         let projects: Promise<QuickPickItem[]> = new Promise((resolve, reject) => {
