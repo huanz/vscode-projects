@@ -2,7 +2,7 @@
     "name": "projects",
     "displayName": "projects",
     "description": "easily switch between projects",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "publisher": "bukas",
     "engines": {
         "vscode": "^1.5.0"
@@ -53,15 +53,6 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Should display the project name in the Status Bar?"
-                },
-                "projects.sortList": {
-                    "type": "string",
-                    "default": "name",
-                    "description": "List the projects sorted by...(default、Name or Recent)",
-                    "enum": [
-                        "name",
-                        "recent"
-                    ]
                 },
                 "projects.openInNewWindow": {
                     "type": "boolean",

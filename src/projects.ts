@@ -18,9 +18,8 @@ import * as path from 'path';
 import * as os from 'os';
 import Store from './store';
 
-interface ProjectElement {
-    label: string,
-    description: string
+interface ProjectElement extends QuickPickItem {
+    count: number
 }
 
 export default class Projects {
@@ -61,6 +60,9 @@ export default class Projects {
             if (currentProject) {
                 this._statusBarItem.text += currentProject.label;
                 this._statusBarItem.show();
+                currentProject.count++;
+                projects.sort((p1, p2) => (p2.count - p1.count) || +(p1.label > p2.label));
+                this.setCache(projects);
             }
         }
     }
@@ -69,7 +71,9 @@ export default class Projects {
         this.context.subscriptions.push(commands.registerCommand('projects.reload', () => this.reloadProjects()));
         this.context.subscriptions.push(commands.registerCommand('projects.create', () => this.createProject()));
 
-        workspace.onDidChangeConfiguration(() => this.reloadProjects());
+        workspace.onDidChangeConfiguration(() => {
+            this.clearCache();
+        });
     }
     listProjects() {
         let projects: Promise<QuickPickItem[]> = new Promise((resolve, reject) => {
@@ -87,7 +91,7 @@ export default class Projects {
         );
     }
     reloadProjects() {
-        this._store.clear('projects').then(() => this.listProjects());
+        this.clearCache().then(() => this.listProjects());
     }
     createProject() {
         let options = <InputBoxOptions>{
@@ -114,9 +118,10 @@ export default class Projects {
                     if (projects) {
                         projects.push({
                             label: input,
-                            description: newDir
+                            description: newDir,
+                            count: 0
                         });
-                        this._store.set('projects', projects);
+                        this.setCache(projects);
                     }
                     this.showInfo(`project ${input} create success`);
                 }
@@ -137,11 +142,12 @@ export default class Projects {
                 }).map(function (dir) {
                     return {
                         label: dir,
-                        description: path.join(projectDir, dir)
+                        description: path.join(projectDir, dir),
+                        count: 0
                     };
                 });
                 if (projects.length) {
-                    this._store.set('projects', projects);
+                    this.setCache(projects);
                     return projects;
                 }
             } else {
@@ -175,14 +181,20 @@ export default class Projects {
     showInfo(msg: string): void {
         window.showInformationMessage(msg);
     }
+    setCache(projects: ProjectElement[]): void {
+        this._store.set('projects', projects);
+    }
+    clearCache(): Thenable<void> {
+        return this._store.clear('projects');
+    }
     dispose() {
         this._statusBarItem.dispose();
     }
-    private _pickProject(selected?: ProjectElement) {
+    private _pickProject(selected?: QuickPickItem) {
         if (!selected) {
             return;
         }
-        let openInNewWindow: boolean = this.config.get('openInNewWindow', true);
+        let openInNewWindow: boolean = this.config.get('openInNewWindow', false);
         let url: Uri = Uri.file(selected.description);
         commands.executeCommand('vscode.openFolder', url, openInNewWindow).then(
             () => {},

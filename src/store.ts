@@ -7,9 +7,9 @@ export default class Store {
     private _context: ExtensionContext
     private _namespace: string
     private _cache: Object
-    constructor(context: ExtensionContext, namespace?: string) {
+    constructor(context: ExtensionContext, namespace: string = 'cache') {
         this._context = context;
-        this._namespace = namespace || 'cache';
+        this._namespace = namespace;
         this._cache = context.globalState.get(this._namespace, {});
     }
     set(key: string | Object, value): Thenable<void> {
