@@ -72,7 +72,15 @@ export default class Projects {
         this.context.subscriptions.push(commands.registerCommand('projects.create', () => this.createProject()));
 
         workspace.onDidChangeConfiguration(() => {
-            this.clearCache();
+            let oldLocation: string = this.config.get<string>('projectsLocation');
+            let newLocation: string;
+
+            this.config = workspace.getConfiguration('projects');
+            newLocation = this.config.get<string>('projectsLocation');
+
+            if (newLocation !== oldLocation) {
+                this.clearCache();
+            }
         });
     }
     listProjects() {
@@ -127,11 +135,14 @@ export default class Projects {
                 }
             }
         },
-            () => this.showError('create project failed'));
+        () => this.showError('create project failed'));
     }
     getProjects(): ProjectElement[] {
         let projects = this._store.get('projects');
-        if (projects) {
+        /**
+         * @desc 兼容老版本，无count
+         */
+        if (projects && typeof projects[0].count !== 'undefined') {
             return projects;
         } else {
             let projectDir = this.getProjectPath();
