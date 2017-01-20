@@ -31,6 +31,7 @@ export default class Projects {
 
     private _statusBarItem: StatusBarItem
     private _store: Store
+    private _projects: ProjectElement[]
 
     constructor(context: ExtensionContext) {
         this.context = context;
@@ -56,12 +57,11 @@ export default class Projects {
 
             let projects: ProjectElement[] = this.getProjects();
             currentProjectPath = currentProjectPath.toString().toLowerCase();
-            let currentProject: ProjectElement = projects.find((project) => project.description.toString().toLowerCase() === currentProjectPath);
+            let currentProject: ProjectElement = projects.find(project => project.description.toString().toLowerCase() === currentProjectPath);
             if (currentProject) {
                 this._statusBarItem.text += currentProject.label;
                 this._statusBarItem.show();
                 currentProject.count++;
-                projects.sort((p1, p2) => (p2.count - p1.count) || +(p1.label > p2.label));
                 this.setCache(projects);
             }
         }
@@ -85,17 +85,24 @@ export default class Projects {
     }
     listProjects() {
         let projects: Promise<QuickPickItem[]> = new Promise((resolve, reject) => {
-            resolve(this.getProjects());
+            resolve(this.getProjects()
+                .sort((p1, p2) => (p2.count - p1.count) || +(p1.label > p2.label))
+                .concat([{
+                    label: '$reload',
+                    description: '重新加载项目列表',
+                    count: 0
+                }])
+            );
         });
         let options = <QuickPickOptions>{
-            placeHolder: 'load projects (pick one to open)',
+            placeHolder: '输入项目名打开该项目',
             matchOnDescription: false,
             matchOnDetail: false
         };
 
         window.showQuickPick(projects, options).then(
             selected => this._pickProject(selected),
-            () => this.showInfo('Error loading projects: ${reason}')
+            () => this.showInfo('加载项目失败: ${reason}')
         );
     }
     reloadProjects() {
@@ -103,15 +110,15 @@ export default class Projects {
     }
     createProject() {
         let options = <InputBoxOptions>{
-            prompt: 'enter project name here',
-            placeHolder: 'enter project name here',
+            prompt: '请输入项目名',
+            placeHolder: '请输入项目名',
             validateInput: (input) => {
                 if (!input.trim()) {
-                    return 'project name is required';
+                    return '项目名不能为空';
                 }
                 let projects = this.getProjects();
                 if (projects && projects.some(project => project.label === input)) {
-                    return 'this project is already exist';
+                    return '该项目已经存在';
                 }
             }
         };
@@ -131,11 +138,11 @@ export default class Projects {
                         });
                         this.setCache(projects);
                     }
-                    this.showInfo(`project ${input} create success`);
+                    this.showInfo(`项目【${input}】创建成功`);
                 }
             }
         },
-        () => this.showError('create project failed'));
+            () => this.showError('创建项目失败'));
     }
     getProjects(): ProjectElement[] {
         let projects = this._store.get('projects');
@@ -148,13 +155,13 @@ export default class Projects {
             let projectDir = this.getProjectPath();
             if (projectDir) {
                 let ignoredFolders = this.config.get('ignoredFolders', []);
-                let projects = fs.readdirSync(projectDir).filter(function (dir) {
+                let projects = fs.readdirSync(projectDir).filter(dir => {
                     return !dir.startsWith('.') && ignoredFolders.indexOf(dir) === -1 && fs.statSync(path.join(projectDir, dir)).isDirectory();
-                }).map(function (dir) {
+                }).map(dir => {
                     return {
                         label: dir,
                         description: path.join(projectDir, dir),
-                        count: 0
+                        count: this._getProjectCount(dir)
                     };
                 });
                 if (projects.length) {
@@ -162,7 +169,7 @@ export default class Projects {
                     return projects;
                 }
             } else {
-                this.showError('Error loading project dir');
+                this.showError('项目目录加载出错');
             }
         }
     }
@@ -174,10 +181,10 @@ export default class Projects {
             if (stats.isDirectory()) {
                 return projectsLocation;
             } else {
-                this.showError('projectsLocation must be a folder');
+                this.showError('projects.projectsLocation 必须是一个目录');
             }
         } catch (error) {
-            this.showError('projects.projectsLocation not exist');
+            this.showError('projects.projectsLocation 不存在');
         }
     }
     replaceHome(path: string): string {
@@ -196,6 +203,10 @@ export default class Projects {
         this._store.set('projects', projects);
     }
     clearCache(): Thenable<void> {
+        /**
+         * @desc 缓存老的projects
+         */
+        this._projects = this._store.get('projects');
         return this._store.clear('projects');
     }
     dispose() {
@@ -205,11 +216,26 @@ export default class Projects {
         if (!selected) {
             return;
         }
-        let openInNewWindow: boolean = this.config.get('openInNewWindow', false);
-        let url: Uri = Uri.file(selected.description);
-        commands.executeCommand('vscode.openFolder', url, openInNewWindow).then(
-            () => {},
-            () => this.showInfo('Could not open the project!')
-        );
+        /**
+         * @desc 快捷重新加载项目
+         */
+        if (selected.label === '$reload') {
+            this.reloadProjects();
+        } else {
+            let openInNewWindow: boolean = this.config.get('openInNewWindow', false);
+            let url: Uri = Uri.file(selected.description);
+            commands.executeCommand('vscode.openFolder', url, openInNewWindow).then(
+                () => { },
+                () => this.showInfo('项目目录打开失败')
+            );
+        }
+    }
+    private _getProjectCount(projectName: string): number {
+        if (this._projects) {
+            return this._projects.find(project => {
+                return project.label === projectName;
+            }).count || 0;
+        }
+        return 0;
     }
 }
