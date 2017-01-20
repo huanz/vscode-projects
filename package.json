@@ -2,7 +2,7 @@
     "name": "projects",
     "displayName": "projects",
     "description": "easily switch between projects",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "publisher": "bukas",
     "engines": {
         "vscode": "^1.6.0"
