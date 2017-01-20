@@ -1,5 +1,5 @@
 'use strict';
-import {ExtensionContext} from 'vscode';
+import { ExtensionContext } from 'vscode';
 import Projects from './projects';
 
 export function activate(context: ExtensionContext): void {

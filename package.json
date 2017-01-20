@@ -17,13 +17,13 @@
         "manage"
     ],
     "homepage": "https://github.com/huanz/vscode-projects/blob/master/README.md",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/huanz/vscode-projects.git"
-	},
-	"bugs": {
-		"url": "https://github.com/huanz/vscode-projects/issues"
-	},
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/huanz/vscode-projects.git"
+    },
+    "bugs": {
+        "url": "https://github.com/huanz/vscode-projects/issues"
+    },
     "icon": "images/projects.png",
     "activationEvents": [
         "*"
