@@ -20,7 +20,7 @@ export default class Store {
                 this._cache[prop] = key[prop];
             }
         }
-        return this._context.globalState.update(this._namespace, this._cache);
+        return this._update();
     }
     get(key: string) {
         return this._cache[key];
@@ -31,6 +31,9 @@ export default class Store {
         } else {
             this._cache = {};
         }
+        return this._update();
+    }
+    private _update(): Thenable<void> {
         return this._context.globalState.update(this._namespace, this._cache);
     }
 }
