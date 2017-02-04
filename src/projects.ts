@@ -102,7 +102,7 @@ export default class Projects {
 
         window.showQuickPick(projects, options).then(
             selected => this._pickProject(selected),
-            () => this.showInfo('加载项目失败: ${reason}')
+            e => this.showInfo(`加载项目失败: ${e}`)
         );
     }
     reloadProjects() {
@@ -138,11 +138,11 @@ export default class Projects {
                         });
                         this.setCache(projects);
                     }
-                    this.showInfo(`项目【${input}】创建成功`);
+                    this.openProject(newDir);
                 }
             }
         },
-            () => this.showError('创建项目失败'));
+        e => this.showError(`创建项目失败：${e}`));
     }
     getProjects(): ProjectElement[] {
         let projects = this._store.get('projects');
@@ -209,6 +209,14 @@ export default class Projects {
         this._projects = this._store.get('projects');
         return this._store.clear('projects');
     }
+    openProject(projectPath: string) {
+        let openInNewWindow: boolean = this.config.get('openInNewWindow', false);
+        let url: Uri = Uri.file(projectPath);
+        commands.executeCommand('vscode.openFolder', url, openInNewWindow).then(
+            () => { },
+            e => this.showInfo(`项目目录打开失败：${e}`)
+        );
+    }
     dispose() {
         this._statusBarItem.dispose();
     }
@@ -222,12 +230,7 @@ export default class Projects {
         if (selected.label === '$reload') {
             this.reloadProjects();
         } else {
-            let openInNewWindow: boolean = this.config.get('openInNewWindow', false);
-            let url: Uri = Uri.file(selected.description);
-            commands.executeCommand('vscode.openFolder', url, openInNewWindow).then(
-                () => { },
-                () => this.showInfo('项目目录打开失败')
-            );
+            this.openProject(selected.description);
         }
     }
     private _getProjectCount(projectName: string): number {
