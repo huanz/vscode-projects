@@ -235,9 +235,12 @@ export default class Projects {
     }
     private _getProjectCount(projectName: string): number {
         if (this._projects) {
-            return this._projects.find(project => {
+            let currentProject = this._projects.find(project => {
                 return project.label === projectName;
-            }).count || 0;
+            });
+            if (currentProject && currentProject.count) {
+                return currentProject.count;
+            }
         }
         return 0;
     }
