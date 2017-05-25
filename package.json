@@ -45,7 +45,7 @@
             "title": "Projects Configuration",
             "properties": {
                 "projects.projectsLocation": {
-                    "type": "string",
+                    "type": ["string", "array"],
                     "default": "projects",
                     "description": "Indicates an alternative projects location"
                 },
@@ -81,10 +81,10 @@
         "test": "node ./node_modules/vscode/bin/test"
     },
     "devDependencies": {
-        "typescript": "^2.1.6",
-        "vscode": "^1.0.3",
-        "mocha": "^3.2.0",
-        "@types/node": "^7.0.0",
-        "@types/mocha": "^2.2.38"
+        "typescript": "^2.3.3",
+        "vscode": "^1.1.0",
+        "mocha": "^3.4.1",
+        "@types/node": "^7.0.22",
+        "@types/mocha": "^2.2.41"
     }
 }

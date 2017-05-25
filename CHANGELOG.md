@@ -1,3 +1,7 @@
+## 0.0.8
+
+- `projects.projectsLocation`支持多项目文件夹
+
 ## 0.0.7
 
 - 修复reload bug

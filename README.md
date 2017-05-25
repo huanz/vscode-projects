@@ -12,12 +12,18 @@ Press `F1` in vscode, type `ext install` and then look for `projects`.
 
 **projects.projectsLocation***
 
-你所有的项目存放的文件夹的绝对路径，此文件夹下面的所有一级目录将为一个单独的项目。`default: $home/projects`
+你所有的项目存放的文件夹的绝对路径，此文件夹下面的所有一级目录将为一个单独的项目。
 
 可用变量`$home`表示用户目录
 
 ```
 "projects.projectsLocation": "$home/web"
+```
+
+或者配置多个项目目录，这些目录下面的每一个一级目录将作为一个单独的项目。
+
+```
+"projects.projectsLocation": ["$home/web", "$home/client"]
 ```
 
 **projects.showProjectNameInStatusBar**

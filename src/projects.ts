@@ -32,6 +32,7 @@ export default class Projects {
     private _statusBarItem: StatusBarItem
     private _store: Store
     private _projects: ProjectElement[]
+    private _projectDirs: string[]
 
     constructor(context: ExtensionContext) {
         this.context = context;
@@ -56,8 +57,8 @@ export default class Projects {
             this._statusBarItem.command = 'projects.list';
 
             let projects: ProjectElement[] = this.getProjects();
-            currentProjectPath = currentProjectPath.toString().toLowerCase();
-            let currentProject: ProjectElement = projects.find(project => project.description.toString().toLowerCase() === currentProjectPath);
+            currentProjectPath = currentProjectPath.toLowerCase();
+            let currentProject: ProjectElement = projects.find(project => project.description.toLowerCase() === currentProjectPath);
             if (currentProject) {
                 this._statusBarItem.text += currentProject.label;
                 this._statusBarItem.show();
@@ -72,34 +73,35 @@ export default class Projects {
         this.context.subscriptions.push(commands.registerCommand('projects.create', () => this.createProject()));
 
         workspace.onDidChangeConfiguration(() => {
-            let oldLocation: string = this.config.get<string>('projectsLocation');
-            let newLocation: string;
+            let oldLocation = this.getProjectDirs();
 
             this.config = workspace.getConfiguration('projects');
-            newLocation = this.config.get<string>('projectsLocation');
 
-            if (newLocation !== oldLocation) {
+            let newLocation = this.getProjectDirs(false);
+
+            if (newLocation && newLocation !== oldLocation) {
+                if (Array.isArray(newLocation) && Array.isArray(oldLocation)
+                    && newLocation.length === oldLocation.length
+                    && newLocation.sort().join(',') === oldLocation.sort().join(',')) {
+                    return;
+                }
                 this.clearCache();
             }
         });
     }
     listProjects() {
-        let projects: Promise<QuickPickItem[]> = new Promise((resolve, reject) => {
-            resolve(this.getProjects()
-                .sort((p1, p2) => (p2.count - p1.count) || +(p1.label > p2.label))
-                .concat([{
-                    label: '$reload',
-                    description: '重新加载项目列表',
-                    count: 0
-                }])
-            );
-        });
-        let options = <QuickPickOptions>{
+        let projects: QuickPickItem[] = this.getProjects()
+            .sort((p1, p2) => (p2.count - p1.count) || +(p1.label > p2.label))
+            .concat([{
+                label: '$reload',
+                description: '重新加载项目列表',
+                count: 0
+            }]);
+        let options = {
             placeHolder: '输入项目名打开该项目',
             matchOnDescription: false,
             matchOnDetail: false
         };
-
         window.showQuickPick(projects, options).then(
             selected => this._pickProject(selected),
             e => this.showInfo(`加载项目失败: ${e}`)
@@ -117,81 +119,124 @@ export default class Projects {
                     return '项目名不能为空';
                 }
                 let projects = this.getProjects();
-                if (projects && projects.some(project => project.label === input)) {
+                if (projects.some(project => project.label === input)) {
                     return '该项目已经存在';
                 }
             }
         };
         window.showInputBox(options).then(input => {
-            input = input.trim();
             if (input) {
-                let projectDir = this.getProjectPath();
-                if (projectDir) {
-                    let newDir = path.join(projectDir, input);
-                    fs.mkdirSync(newDir);
-                    let projects = this._store.get('projects');
-                    if (projects) {
-                        projects.push({
-                            label: input,
-                            description: newDir,
-                            count: 0
+                let projectDirs = this.getProjectDirs();
+                if (projectDirs) {
+                    if (projectDirs.length === 1) {
+                        this.makeProjectDir(input, projectDirs[0]);
+                    } else {
+                        window.showQuickPick(projectDirs, {
+                            placeHolder: '请选择项目文件夹',
+                            matchOnDescription: false,
+                            matchOnDetail: false
+                        }).then(selected => {
+                            this.makeProjectDir(input, selected.label);
                         });
-                        this.setCache(projects);
                     }
-                    this.openProject(newDir);
                 }
             }
         },
-        e => this.showError(`创建项目失败：${e}`));
+            e => this.showError(`创建项目失败：${e}`));
+    }
+    makeProjectDir(name: string, dir: string, ) {
+        let projectDir = path.join(dir, name);
+        fs.mkdirSync(projectDir);
+        let projects = this._store.get('projects');
+        let project: ProjectElement = {
+            label: name,
+            description: projectDir,
+            count: 1
+        };
+        if (projects) {
+            projects.push(project);
+        } else {
+            projects = [project];
+        }
+        this.setCache(projects);
+        this.openProject(projectDir);
     }
     getProjects(): ProjectElement[] {
         let projects = this._store.get('projects');
         /**
          * @desc 兼容老版本，无count
          */
-        if (projects && typeof projects[0].count !== 'undefined') {
+        if (projects) {
             return projects;
         } else {
-            let projectDir = this.getProjectPath();
-            if (projectDir) {
+            projects = [];
+            let projectDirs = this.getProjectDirs();
+            if (projectDirs) {
                 let ignoredFolders = this.config.get('ignoredFolders', []);
-                let projects = fs.readdirSync(projectDir).filter(dir => {
-                    return !dir.startsWith('.') && ignoredFolders.indexOf(dir) === -1 && fs.statSync(path.join(projectDir, dir)).isDirectory();
-                }).map(dir => {
-                    return {
-                        label: dir,
-                        description: path.join(projectDir, dir),
-                        count: this._getProjectCount(dir)
-                    };
+                projectDirs.forEach(proDir => {
+                    let pros = fs.readdirSync(proDir).filter(dir => {
+                        return !dir.startsWith('.') && ignoredFolders.indexOf(dir) === -1 && fs.statSync(path.join(proDir, dir)).isDirectory();
+                    }).map(dir => {
+                        return {
+                            label: dir,
+                            description: path.join(proDir, dir),
+                            count: this._getProjectCount(dir)
+                        };
+                    });
+                    projects = projects.concat(pros);
                 });
-                if (projects.length) {
-                    this.setCache(projects);
-                    return projects;
-                }
-            } else {
-                this.showError('项目目录加载出错');
             }
+            this.setCache(projects);
+            return projects;
         }
     }
-    getProjectPath(): any {
-        let projectsLocation: string = this.config.get<string>('projectsLocation');
-        projectsLocation = projectsLocation ? this.replaceHome(projectsLocation) : path.join(this.homeDir, 'projects');
+    getProjectDirs(cache = true) {
+        if (cache && this._projectDirs) {
+            return this._projectDirs;
+        }
+
+        let temp: string[] = [];
+        let projectsLocation: string | string[] = this.config.get<string | string[]>('projectsLocation');
+
+        if (Array.isArray(projectsLocation)) {
+            temp = projectsLocation;
+        } else if (projectsLocation) {
+            temp.push(projectsLocation);
+        }
+
+        if (!temp.length) {
+            this.showError('projects.projectsLocation 请配置项目目录');
+            return;
+        }
+
+        let result = new Set();
+        temp.forEach(dir => {
+            let d = this.checkDir(dir.trim());
+            if (d) {
+                result.add(d);
+            }
+        });
+
+        if (result.size) {
+            return this._projectDirs = Array.from(result);
+        } else {
+            this.showError('projects.projectsLocation 项目目录必须为正确的文件夹');
+        }
+    }
+    checkDir(dir: string): any {
+        dir = this.replaceHome(dir);
         try {
-            let stats = fs.statSync(projectsLocation);
+            let stats = fs.statSync(dir);
             if (stats.isDirectory()) {
-                return projectsLocation;
+                return dir;
             } else {
-                this.showError('projects.projectsLocation 必须是一个目录');
+
             }
         } catch (error) {
-            this.showError('projects.projectsLocation 不存在');
         }
     }
-    replaceHome(path: string): string {
-        if (path.startsWith(this.homePathVariable)) {
-            return path.replace(this.homePathVariable, this.homeDir);
-        }
-        return path;
+    replaceHome(dir: string): string {
+        return dir.startsWith(this.homePathVariable) ? dir.replace(this.homePathVariable, this.homeDir) : dir;
     }
     showError(msg: string, option?: MessageItem): Thenable<any> {
         return window.showErrorMessage(msg, option);
