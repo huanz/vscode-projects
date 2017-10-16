@@ -175,7 +175,12 @@ export default class Projects {
                 let ignoredFolders = this.config.get('ignoredFolders', []);
                 projectDirs.forEach(proDir => {
                     let pros = fs.readdirSync(proDir).filter(dir => {
-                        return !dir.startsWith('.') && ignoredFolders.indexOf(dir) === -1 && fs.statSync(path.join(proDir, dir)).isDirectory();
+                        if (dir.startsWith('.') || ignoredFolders.indexOf(dir) !== -1) return false;
+                        try {
+                            return fs.statSync(path.join(proDir, dir)).isDirectory();
+                        } catch (e) {
+                            return false;
+                        }
                     }).map(dir => {
                         return {
                             label: dir,
