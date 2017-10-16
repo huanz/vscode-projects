@@ -2,7 +2,7 @@
     "name": "projects",
     "displayName": "projects",
     "description": "easily switch between projects",
-    "version": "0.0.8",
+    "version": "0.0.9",
     "publisher": "bukas",
     "engines": {
         "vscode": "^1.6.0"
@@ -30,22 +30,29 @@
     ],
     "main": "./out/src/extension",
     "contributes": {
-        "commands": [{
-            "command": "projects.list",
-            "title": "Projects: List Projects to Open"
-        }, {
-            "command": "projects.reload",
-            "title": "Projects: Reload Projects Location"
-        }, {
-            "command": "projects.create",
-            "title": "Projects: Create empty Project"
-        }],
+        "commands": [
+            {
+                "command": "projects.list",
+                "title": "Projects: List Projects to Open"
+            },
+            {
+                "command": "projects.reload",
+                "title": "Projects: Reload Projects Location"
+            },
+            {
+                "command": "projects.create",
+                "title": "Projects: Create empty Project"
+            }
+        ],
         "configuration": {
             "type": "object",
             "title": "Projects Configuration",
             "properties": {
                 "projects.projectsLocation": {
-                    "type": ["string", "array"],
+                    "type": [
+                        "string",
+                        "array"
+                    ],
                     "default": "projects",
                     "description": "Indicates an alternative projects location"
                 },
@@ -68,11 +75,13 @@
                 }
             }
         },
-        "keybindings": [{
-            "command": "projects.list",
-            "key": "shift+alt+p",
-            "mac": "cmd+alt+p"
-        }]
+        "keybindings": [
+            {
+                "command": "projects.list",
+                "key": "shift+alt+p",
+                "mac": "cmd+alt+p"
+            }
+        ]
     },
     "scripts": {
         "vscode:prepublish": "tsc -p ./",
@@ -81,10 +90,10 @@
         "test": "node ./node_modules/vscode/bin/test"
     },
     "devDependencies": {
-        "typescript": "^2.3.3",
-        "vscode": "^1.1.0",
-        "mocha": "^3.4.1",
-        "@types/node": "^7.0.22",
-        "@types/mocha": "^2.2.41"
+        "typescript": "^2.5.3",
+        "vscode": "^1.1.6",
+        "mocha": "^4.0.1",
+        "@types/node": "^8.0.34",
+        "@types/mocha": "^2.2.43"
     }
 }
